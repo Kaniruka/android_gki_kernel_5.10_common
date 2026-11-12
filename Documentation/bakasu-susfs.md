@@ -31,6 +31,12 @@ the dedicated build script explicitly enables it. Other architectures and
 ordinary configurations do not inherit BakaSU's upstream default-on setting.
 Existing optional MLGO and hot/cold-split flags are compiler/linker-probed;
 Clang r416183b does not accept the inherited MLGO advisor flag.
+The baseline had also removed `sched_group_capacity.next_update`, changing
+the frozen scheduler type layout. The field is restored from the
+[official Android 12 / 5.10.240 source](https://android.googlesource.com/kernel/common/+/refs/tags/android12-5.10-2025-09_r1/kernel/sched/sched.h)
+and the repository's `android/abi_gki_aarch64.xml` contract. Existing capacity
+update logic is retained; the layout restoration fixes scheduler export CRCs
+without overriding CRC values or bypassing MODVERSIONS.
 
 The 5.10 kernel patch applies cleanly to this baseline. The only additional
 hook adaptation is in `fs/read_write.c`: BakaSU declares
