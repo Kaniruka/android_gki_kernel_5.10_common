@@ -29,6 +29,8 @@ interfaces and Kconfig. Upstream copyright and licensing notices are retained.
 The local Kconfig entry limits this integration to arm64 and defaults KSU off;
 the dedicated build script explicitly enables it. Other architectures and
 ordinary configurations do not inherit BakaSU's upstream default-on setting.
+Existing optional MLGO and hot/cold-split flags are compiler/linker-probed;
+Clang r416183b does not accept the inherited MLGO advisor flag.
 
 The 5.10 kernel patch applies cleanly to this baseline. The only additional
 hook adaptation is in `fs/read_write.c`: BakaSU declares
