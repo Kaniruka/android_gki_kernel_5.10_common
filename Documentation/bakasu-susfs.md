@@ -64,7 +64,7 @@ Use an x86-64 Linux host. On Ubuntu 22.04:
 ```sh
 sudo apt-get update
 sudo apt-get install -y build-essential bc bison flex libssl-dev libelf-dev \
-  libncurses5 libtinfo5 python3 lz4 dwarves rsync curl git
+  libncurses5 libtinfo5 python3 python-is-python3 lz4 dwarves rsync curl git
 git clone --depth=1 https://github.com/Kaniruka/android_gki_kernel_5.10_common
 cd android_gki_kernel_5.10_common
 git submodule update --init --recursive

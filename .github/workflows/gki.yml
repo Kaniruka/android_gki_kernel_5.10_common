@@ -29,7 +29,7 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential bc bison flex libssl-dev libelf-dev libncurses5 libtinfo5 python3 lz4 dwarves rsync shellcheck
+          sudo apt-get install -y build-essential bc bison flex libssl-dev libelf-dev libncurses5 libtinfo5 python3 python-is-python3 lz4 dwarves rsync shellcheck
       - name: Check shell scripts
         run: shellcheck -x ci/*.sh
       - name: Cache pinned AOSP compiler
