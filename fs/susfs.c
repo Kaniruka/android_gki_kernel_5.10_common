@@ -181,7 +181,12 @@ void susfs_spoof_avd_allowed_rcu(u32 s_type, u32 t_type, u32 c_type, u32 *avd_al
  * The original credentials are returned, they have to be restored with
  * susfs_restore_creds() afterwards.
  * Returns the original credentials on success, NULL on failure.
+ *
+ * Both helpers are only used by the optional priority UID filter code below,
+ * so they are compiled under the same option: without it the -Werror build
+ * would reject them as unused functions.
  */
+#ifdef CONFIG_KSU_SUSFS_PRIORITY_UID_FILTER
 static struct cred *susfs_switch_to_ksu_domain(void) {
 	struct cred *orig_cred = NULL;
 	struct cred *cred = NULL;
@@ -222,6 +227,7 @@ static void susfs_restore_creds(struct cred *orig_cred) {
 
 	commit_creds(orig_cred);
 }
+#endif // #ifdef CONFIG_KSU_SUSFS_PRIORITY_UID_FILTER
 
 /* sus_path */
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH

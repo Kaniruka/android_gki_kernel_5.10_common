@@ -40,6 +40,9 @@ SUSFS patch's one-argument `void` declaration. BakaSU itself is unchanged.
 Trailing whitespace in the imported `fs/susfs.c` was normalized.
 SUSFS 2.4's optional priority UID filter is unavailable at this BakaSU pin:
 its Kconfig and dispatcher do not implement that option, so it is not enabled.
+Accordingly, `fs/susfs.c` compiles the two SELinux-domain credential helpers
+(`susfs_switch_to_ksu_domain`, `susfs_restore_creds`) under that same option
+guard as their only call sites, avoiding unused helper definitions when disabled.
 
 SUSFS's upstream repository carries GPL-3.0 in its root license, copied verbatim
 to [susfs-LICENSE](susfs-LICENSE); the imported files have no separate SPDX
