@@ -85,6 +85,18 @@ compilation. `TOOLCHAIN_DIR` must point to the **root** of Clang r416183b, not
 its `bin` directory. Substituting a newer compiler can change CFI and ABI
 behavior and is not covered by this build configuration.
 
+`BASE_CONFIG` optionally names an absolute path to a known-good kernel
+configuration. When it is set, the script verifies that it is a readable file,
+copies it to `OUT_DIR/.config` instead of running `gki_defconfig`, and then
+applies the same forced options and `olddefconfig` pass. When it is unset, the
+previous `gki_defconfig` behavior is unchanged. The seed affects only that
+invocation, changes nothing in CI's generic builds, and does not extend the ABI
+coverage described below; its path and digest are recorded in `build-info.txt`.
+
+```sh
+BASE_CONFIG=/absolute/path/known-good.config ci/build-gki.sh
+```
+
 This standalone make-based build does not run Android's full `build/build.sh`
 ABI XML comparison, KMI symbol-list enforcement or symbol trimming. Preserving
 CFI and MODVERSIONS is not a substitute for those checks; the artifacts are

@@ -12,6 +12,15 @@ if [[ "$MODE" == build && -e "$DIST_DIR" ]]; then
   echo 'DIST_DIR already exists; select a new directory for this build' >&2
   exit 2
 fi
+BASE_CONFIG=${BASE_CONFIG:-}
+if [[ -n "$BASE_CONFIG" ]]; then
+  BASE_CONFIG=$(realpath -m -- "$BASE_CONFIG")
+  if [[ "$BASE_CONFIG" == "$OUT_DIR/.config" || "$BASE_CONFIG" -ef "$OUT_DIR/.config" ]]; then
+    echo 'BASE_CONFIG must not be the output configuration file' >&2
+    exit 2
+  fi
+  [[ -f "$BASE_CONFIG" && -r "$BASE_CONFIG" ]] || { echo "BASE_CONFIG is not a readable file: $BASE_CONFIG" >&2; exit 2; }
+fi
 export PATH="$TOOLCHAIN_DIR/bin:$PATH"
 clang --version | grep -q 'r416183b' || { echo 'Expected Android Clang r416183b' >&2; exit 1; }
 [[ $(git -C KernelSU rev-parse HEAD) == 548d1dda060ca198823d8808804d01f5209ef4a9 ]] || { echo 'Unexpected BakaSU revision; initialize pinned submodule' >&2; exit 1; }
@@ -23,7 +32,15 @@ export SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH:-$(git show -s --format=%ct HEAD)}
 export KBUILD_BUILD_TIMESTAMP
 KBUILD_BUILD_TIMESTAMP=$(date -u -d "@$SOURCE_DATE_EPOCH")
 mkdir -p "$OUT_DIR"
-make O="$OUT_DIR" gki_defconfig
+CONFIG_SEED=gki_defconfig
+CONFIG_SEED_SHA256=
+if [[ -n "$BASE_CONFIG" ]]; then
+  CONFIG_SEED=$BASE_CONFIG
+  CONFIG_SEED_SHA256=$(sha256sum -- "$BASE_CONFIG" | cut -d' ' -f1)
+  cp -f -- "$BASE_CONFIG" "$OUT_DIR/.config"
+else
+  make O="$OUT_DIR" gki_defconfig
+fi
 scripts/config --file "$OUT_DIR/.config" \
   --set-str LOCALVERSION '-android12-9' --disable LOCALVERSION_AUTO \
   --disable LTO_CLANG_FULL --enable LTO_CLANG_THIN \
@@ -47,6 +64,10 @@ tar -C "$OUT_DIR" -czf "$DIST_DIR/modules.tar.gz" \
   printf 'source=%s\n' "$(git rev-parse HEAD)"
   printf 'bakasu=%s\n' "$(git -C KernelSU rev-parse HEAD)"
   printf 'susfs=%s\n' '5436438b5cc77f146e04f71070da153dabe17a9d'
+  printf 'config_seed=%s\n' "$CONFIG_SEED"
+  if [[ -n "$CONFIG_SEED_SHA256" ]]; then
+    printf 'config_seed_sha256=%s\n' "$CONFIG_SEED_SHA256"
+  fi
   printf 'source_date_epoch=%s\n' "$SOURCE_DATE_EPOCH"
   printf 'kernel_release=%s\n' "$(cat "$OUT_DIR/include/config/kernel.release")"
   clang --version
