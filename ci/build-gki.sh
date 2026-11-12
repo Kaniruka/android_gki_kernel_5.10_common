@@ -22,6 +22,7 @@ if [[ -n "$BASE_CONFIG" ]]; then
   [[ -f "$BASE_CONFIG" && -r "$BASE_CONFIG" ]] || { echo "BASE_CONFIG is not a readable file: $BASE_CONFIG" >&2; exit 2; }
 fi
 export PATH="$TOOLCHAIN_DIR/bin:$PATH"
+command -v python >/dev/null || { echo 'Missing python command; install python-is-python3' >&2; exit 1; }
 clang --version | grep -q 'r416183b' || { echo 'Expected Android Clang r416183b' >&2; exit 1; }
 [[ $(git -C KernelSU rev-parse HEAD) == 548d1dda060ca198823d8808804d01f5209ef4a9 ]] || { echo 'Unexpected BakaSU revision; initialize pinned submodule' >&2; exit 1; }
 [[ $(git -C KernelSU rev-parse --is-shallow-repository) == false ]] || { echo 'BakaSU needs full commit history for its version code' >&2; exit 1; }
@@ -49,6 +50,11 @@ make O="$OUT_DIR" olddefconfig
 for option in KSU KSU_SUSFS CFI_CLANG MODVERSIONS LTO_CLANG_THIN; do
   grep -qx "CONFIG_${option}=y" "$OUT_DIR/.config" || { echo "Required option lost: $option" >&2; exit 1; }
 done
+if grep -qx 'CONFIG_IKHEADERS=y' "$OUT_DIR/.config"; then
+  for tool in cpio xz; do
+    command -v "$tool" >/dev/null || { echo "IKHEADERS requires $tool" >&2; exit 1; }
+  done
+fi
 if [[ "$MODE" == configure ]]; then exit 0; fi
 make O="$OUT_DIR" -j"${JOBS:-$(nproc)}" Image Image.gz Image.lz4 modules
 for symbol in ksu_handle_sys_read ksu_handle_execveat susfs_init; do
