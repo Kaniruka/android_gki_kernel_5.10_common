@@ -11,6 +11,7 @@
 # Normal rules (sorted alphabetically)
 #
 .*
+!/.github/
 *.a
 *.asn1.[ch]
 *.bin
@@ -156,3 +157,9 @@ x509.genkey
 
 # Documentation toolchain
 sphinx_*/
+# Local credentials, compiler cache and standalone GKI outputs.
+.env
+.env.*
+/.cache/
+/out/
+/dist/

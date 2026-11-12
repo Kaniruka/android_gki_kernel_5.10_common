@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+cd "$ROOT"
+MODE=${1:-build}
+case "$MODE" in configure|build) ;; *) echo "Usage: $0 [configure|build]" >&2; exit 2 ;; esac
+TOOLCHAIN_DIR=${TOOLCHAIN_DIR:-$ROOT/.cache/clang-r416183b}
+OUT_DIR=$(realpath -m "${OUT_DIR:-$ROOT/out/gki}")
+DIST_DIR=$(realpath -m "${DIST_DIR:-$ROOT/dist}")
+[[ "$OUT_DIR" != "$ROOT" && "$DIST_DIR" != "$ROOT" ]] || { echo 'Output directories must differ from source' >&2; exit 2; }
+if [[ "$MODE" == build && -e "$DIST_DIR" ]]; then
+  echo 'DIST_DIR already exists; select a new directory for this build' >&2
+  exit 2
+fi
+export PATH="$TOOLCHAIN_DIR/bin:$PATH"
+clang --version | grep -q 'r416183b' || { echo 'Expected Android Clang r416183b' >&2; exit 1; }
+[[ $(git -C KernelSU rev-parse HEAD) == 548d1dda060ca198823d8808804d01f5209ef4a9 ]] || { echo 'Unexpected BakaSU revision; initialize pinned submodule' >&2; exit 1; }
+[[ $(git -C KernelSU rev-parse --is-shallow-repository) == false ]] || { echo 'BakaSU needs full commit history for its version code' >&2; exit 1; }
+export ARCH=arm64 LLVM=1 LLVM_IAS=1
+export CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_COMPAT=arm-linux-gnueabi-
+export KBUILD_BUILD_USER=gki KBUILD_BUILD_HOST=builder KBUILD_BUILD_VERSION=1
+export SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH:-$(git show -s --format=%ct HEAD)}
+export KBUILD_BUILD_TIMESTAMP
+KBUILD_BUILD_TIMESTAMP=$(date -u -d "@$SOURCE_DATE_EPOCH")
+mkdir -p "$OUT_DIR"
+make O="$OUT_DIR" gki_defconfig
+scripts/config --file "$OUT_DIR/.config" \
+  --set-str LOCALVERSION '-android12-9' --disable LOCALVERSION_AUTO \
+  --disable LTO_CLANG_FULL --enable LTO_CLANG_THIN \
+  --enable KSU --disable KSU_TRACEPOINT_HOOK --disable KSU_MANUAL_HOOK --enable KSU_SUSFS
+make O="$OUT_DIR" olddefconfig
+for option in KSU KSU_SUSFS CFI_CLANG MODVERSIONS LTO_CLANG_THIN; do
+  grep -qx "CONFIG_${option}=y" "$OUT_DIR/.config" || { echo "Required option lost: $option" >&2; exit 1; }
+done
+if [[ "$MODE" == configure ]]; then exit 0; fi
+make O="$OUT_DIR" -j"${JOBS:-$(nproc)}" Image Image.gz Image.lz4 modules
+for symbol in ksu_handle_sys_read ksu_handle_execveat susfs_init; do
+  grep -q " ${symbol}$" "$OUT_DIR/System.map" || { echo "Missing linked symbol: $symbol" >&2; exit 1; }
+done
+mkdir -p "$DIST_DIR"
+cp "$OUT_DIR"/arch/arm64/boot/Image{,.gz,.lz4} "$DIST_DIR/"
+cp "$OUT_DIR"/{Module.symvers,System.map,vmlinux} "$DIST_DIR/"
+cp "$OUT_DIR/.config" "$DIST_DIR/kernel.config"
+tar -C "$OUT_DIR" -czf "$DIST_DIR/modules.tar.gz" \
+  -T "$OUT_DIR/modules.order" modules.order modules.builtin modules.builtin.modinfo
+{
+  printf 'source=%s\n' "$(git rev-parse HEAD)"
+  printf 'bakasu=%s\n' "$(git -C KernelSU rev-parse HEAD)"
+  printf 'susfs=%s\n' '5436438b5cc77f146e04f71070da153dabe17a9d'
+  printf 'source_date_epoch=%s\n' "$SOURCE_DATE_EPOCH"
+  printf 'kernel_release=%s\n' "$(cat "$OUT_DIR/include/config/kernel.release")"
+  clang --version
+  printf '\nSource status (empty means clean):\n'
+  git status --porcelain
+  printf '\nBakaSU status:\n'
+  git -C KernelSU status --porcelain
+} > "$DIST_DIR/build-info.txt"
+git diff --binary HEAD > "$DIST_DIR/source.patch"
+git -C KernelSU diff --binary HEAD > "$DIST_DIR/bakasu.patch"
+# SHA256SUMS is explicitly excluded from the input list.
+# shellcheck disable=SC2094
+(cd "$DIST_DIR" && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)

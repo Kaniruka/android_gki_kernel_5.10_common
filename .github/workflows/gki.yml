@@ -1,0 +1,58 @@
+name: BakaSU + SUSFS GKI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [android12-5.10-2025-09]
+  pull_request:
+    branches: [android12-5.10-2025-09]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gki-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    steps:
+      - name: Check out pinned sources
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Initialize BakaSU with its version history
+        run: git submodule update --init --recursive
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential bc bison flex libssl-dev libelf-dev libncurses5 libtinfo5 python3 lz4 dwarves rsync shellcheck
+      - name: Check shell scripts
+        run: shellcheck -x ci/*.sh
+      - name: Cache pinned AOSP compiler
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: .cache/clang-r416183b
+          key: aosp-clang-linux-x86-${{ hashFiles('ci/toolchain.env') }}
+      - name: Fetch compiler
+        run: ci/fetch-toolchain.sh
+      - name: Build generic arm64 GKI
+        run: ci/build-gki.sh 2>&1 | tee build.log
+      - name: Upload kernel, symbols and provenance
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: gki-android12-5.10-bakasu-susfs-${{ github.sha }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: build-log-${{ github.sha }}
+          path: build.log
+          if-no-files-found: ignore
+          retention-days: 14

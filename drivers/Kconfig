@@ -237,4 +237,12 @@ source "drivers/interconnect/Kconfig"
 source "drivers/counter/Kconfig"
 
 source "drivers/most/Kconfig"
+
+if ARM64
+# Keep existing configurations root-free unless explicitly requested.
+config KSU
+	default n
+
+source "drivers/kernelsu/Kconfig"
+endif
 endmenu
