@@ -29,7 +29,7 @@ fi
 export PATH="$TOOLCHAIN_DIR/bin:$PATH"
 command -v python >/dev/null || { echo 'Missing python command; install python-is-python3' >&2; exit 1; }
 clang --version | grep -q 'r416183b' || { echo 'Expected Android Clang r416183b' >&2; exit 1; }
-[[ $(git -C KernelSU rev-parse HEAD) == 548d1dda060ca198823d8808804d01f5209ef4a9 ]] || { echo 'Unexpected BakaSU revision; initialize pinned submodule' >&2; exit 1; }
+[[ $(git -C KernelSU rev-parse HEAD) == eca1c3bf99d99408aa6b857a38adb86b71cb8791 ]] || { echo 'Unexpected BakaSU revision; initialize pinned submodule' >&2; exit 1; }
 [[ $(git -C KernelSU rev-parse --is-shallow-repository) == false ]] || { echo 'BakaSU needs full commit history for its version code' >&2; exit 1; }
 export ARCH=arm64 LLVM=1 LLVM_IAS=1
 export CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_COMPAT=arm-linux-gnueabi-

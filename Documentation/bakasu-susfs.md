@@ -14,7 +14,7 @@ matches. Device images and validation records are maintained separately.
 | Component | Fixed source |
 | --- | --- |
 | Kernel baseline | [`ad7de5b742db00d6bc1587a80e81f10c877b31d9`](https://github.com/Kaniruka/android_gki_kernel_5.10_common/commit/ad7de5b742db00d6bc1587a80e81f10c877b31d9), Linux 5.10.240 |
-| BakaSU | [`548d1dda060ca198823d8808804d01f5209ef4a9`](https://github.com/Baka-SU/BakaSU/commit/548d1dda060ca198823d8808804d01f5209ef4a9), `KernelSU` Git submodule |
+| BakaSU | [`eca1c3bf99d99408aa6b857a38adb86b71cb8791`](https://github.com/Kaniruka/BakaSU/commit/eca1c3bf99d99408aa6b857a38adb86b71cb8791), `KernelSU` Git submodule |
 | SUSFS | [`5436438b5cc77f146e04f71070da153dabe17a9d`](https://gitlab.com/simonpunk/susfs4ksu/-/commit/5436438b5cc77f146e04f71070da153dabe17a9d), `gki-android12-5.10`, v2.4.0 |
 | AOSP Clang | `clang-r416183b`, [`6e3223f76384455acde43affde3df0ea9df66c0d`](https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+/6e3223f76384455acde43affde3df0ea9df66c0d/) |
 
@@ -46,7 +46,16 @@ The 5.10 kernel patch applies cleanly to this baseline. The only additional
 hook adaptation is in `fs/read_write.c`: BakaSU declares
 `int ksu_handle_sys_read(unsigned int, char __user **, size_t *)`, so the
 declaration and call pass `fd`, `&buf` and `&count` instead of using the upstream
-SUSFS patch's one-argument `void` declaration. BakaSU itself is unchanged.
+SUSFS patch's one-argument `void` declaration.
+The pinned [user fork](https://github.com/Kaniruka/BakaSU) is based on upstream
+`548d1dda060ca198823d8808804d01f5209ef4a9`. Its SELinux changes retain a
+reference-counted original-policy snapshot and preserve parser error/lifetime
+handling. The kernel bridges context/access queries and setprocattr to this
+snapshot while keeping live SID transitions and native fallbacks intact.
+Run `python3 tools/testing/selftests/selinux/ksu_bridge_test.py` and
+`python3 tools/testing/selftests/selinux/ksu_parser_test.py` for focused host
+regressions; these do not replace a full CFI build or device validation.
+Adding the fork commit also increments BakaSU's history-derived version code.
 Trailing whitespace in the imported `fs/susfs.c` was normalized.
 SUSFS 2.4's optional priority UID filter is unavailable at this BakaSU pin:
 its Kconfig and dispatcher do not implement that option, so it is not enabled.
