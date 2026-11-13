@@ -52,6 +52,7 @@ static DEFINE_HASHTABLE(SUS_TYPE_HLIST, 10);
 
 struct st_susfs_sus_type_hlist {
 	struct hlist_node                       node;
+	u32                                    type_value;
 };
 
 int susfs_add_sus_type(const char *secctx, u32 type_value) {
@@ -61,6 +62,8 @@ int susfs_add_sus_type(const char *secctx, u32 type_value) {
 
 	mutex_lock(&susfs_mutex_lock_sus_type);
 	hash_for_each_possible_safe(SUS_TYPE_HLIST, tmp_entry, tmp_hlist_node, node, type_value) {
+		if (tmp_entry->type_value != type_value)
+			continue;
 		SUSFS_LOGE("secctx '%s', type_value '%u', was added before already\n",
 			secctx, type_value);
 		err = -EINVAL;
@@ -73,6 +76,7 @@ int susfs_add_sus_type(const char *secctx, u32 type_value) {
 		goto unlock;
 	}
 
+	new_entry->type_value = type_value;
 	hash_add_rcu(SUS_TYPE_HLIST, &new_entry->node, type_value);
 	SUSFS_LOGI_RL("secctx '%s', type '%u', has been added to SUS_TYPE_HLIST\n",
 					secctx, type_value);
@@ -85,7 +89,8 @@ bool susfs_is_sus_type_rcu(u32 type_value) {
 	struct st_susfs_sus_type_hlist *entry = NULL;
 
 	hash_for_each_possible_rcu(SUS_TYPE_HLIST, entry, node, type_value) {
-		return true;
+		if (entry->type_value == type_value)
+			return true;
 	}
 	return false;
 }
