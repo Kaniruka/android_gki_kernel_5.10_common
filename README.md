@@ -6,8 +6,15 @@ CI builds both profiles. All profiles require the pinned submodule for Kconfig.
 This repository
 does not contain device-specific configuration or boot images.
 
-See [build and integration documentation](Documentation/bakasu-susfs.md) for
-local builds, GitHub Actions artifacts, dependency revisions and validation limits.
+Build entry points are [`ci/fetch-toolchain.sh`](ci/fetch-toolchain.sh) and
+[`ci/build-gki.sh`](ci/build-gki.sh). BakaSU is pinned by the `KernelSU` gitlink
+and fetched directly from [Baka-SU/BakaSU](https://github.com/Baka-SU/BakaSU).
+The integrated SUSFS source is
+[`5436438b5cc77f146e04f71070da153dabe17a9d`](https://gitlab.com/simonpunk/susfs4ksu/-/commit/5436438b5cc77f146e04f71070da153dabe17a9d).
+
+Upstream declares SUSFS GPL-3.0 (see [the retained license](Documentation/susfs-LICENSE))
+and the BakaSU kernel directory GPL-2.0-only. These notices are retained, not
+relicensed; compatibility of their combined redistribution is not established here.
 
 # How do I submit patches to Android Common Kernels
 
