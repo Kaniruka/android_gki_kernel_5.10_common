@@ -2,6 +2,9 @@
 
 For modern Android userspace requiring nanosecond Looper waits, this tree also
 includes the [epoll_pwait2 compatibility backport](epoll-pwait2-backport.rst).
+Android 12 process-launch paths that mark descriptors close-on-exec without
+closing them use the
+[close_range CLOSE_RANGE_CLOEXEC backport](close-range-cloexec-backport.rst).
 Module CRC compatibility alone does not establish userspace syscall compatibility.
 
 This integration targets generic arm64 GKI, Android 12 KMI generation 9. It does
