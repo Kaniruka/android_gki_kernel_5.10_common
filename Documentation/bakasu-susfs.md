@@ -17,7 +17,7 @@ matches. Device images and validation records are maintained separately.
 | Component | Fixed source |
 | --- | --- |
 | Kernel baseline | [`ad7de5b742db00d6bc1587a80e81f10c877b31d9`](https://github.com/Kaniruka/android_gki_kernel_5.10_common/commit/ad7de5b742db00d6bc1587a80e81f10c877b31d9), Linux 5.10.240 |
-| BakaSU | [`eca1c3bf99d99408aa6b857a38adb86b71cb8791`](https://github.com/Kaniruka/BakaSU/commit/eca1c3bf99d99408aa6b857a38adb86b71cb8791), `KernelSU` Git submodule |
+| BakaSU | [`dc8e01e075ed1f6e1c7583ea8737ae79bd8237e5`](https://github.com/Baka-SU/BakaSU/commit/dc8e01e075ed1f6e1c7583ea8737ae79bd8237e5), upstream `sync-up` test candidate, `KernelSU` Git submodule |
 | SUSFS | [`5436438b5cc77f146e04f71070da153dabe17a9d`](https://gitlab.com/simonpunk/susfs4ksu/-/commit/5436438b5cc77f146e04f71070da153dabe17a9d), `gki-android12-5.10`, v2.4.0 |
 | AOSP Clang | `clang-r416183b`, [`6e3223f76384455acde43affde3df0ea9df66c0d`](https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+/6e3223f76384455acde43affde3df0ea9df66c0d/) |
 
@@ -50,21 +50,34 @@ hook adaptation is in `fs/read_write.c`: BakaSU declares
 `int ksu_handle_sys_read(unsigned int, char __user **, size_t *)`, so the
 declaration and call pass `fd`, `&buf` and `&count` instead of using the upstream
 SUSFS patch's one-argument `void` declaration.
-The pinned [user fork](https://github.com/Kaniruka/BakaSU) is based on upstream
-`548d1dda060ca198823d8808804d01f5209ef4a9`. Its SELinux changes retain a
-reference-counted original-policy snapshot and preserve parser error/lifetime
-handling. The kernel bridges context/access queries and setprocattr to this
-snapshot while keeping live SID transitions and native fallbacks intact.
-Run `python3 tools/testing/selftests/selinux/ksu_bridge_test.py` and
-`python3 tools/testing/selftests/selinux/ksu_parser_test.py` for focused host
-regressions; these do not replace a full CFI build or device validation.
-Adding the fork commit also increments BakaSU's history-derived version code.
-Trailing whitespace in the imported `fs/susfs.c` was normalized.
-SUSFS 2.4's optional priority UID filter is unavailable at this BakaSU pin:
-its Kconfig and dispatcher do not implement that option, so it is not enabled.
-Accordingly, `fs/susfs.c` compiles the two SELinux-domain credential helpers
-(`susfs_switch_to_ksu_domain`, `susfs_restore_creds`) under that same option
-guard as their only call sites, avoiding unused helper definitions when disabled.
+This local test branch uses the upstream `sync-up` revision directly, without
+our fork's parser or query-lock API patches. SELinux context/access/current
+queries use the native SUSFS routes, with the upstream BakaSU type and AVD
+registration calls. The integrated SUSFS source remains fixed at v2.4.0.
+The previous deployed source remains available on the main kernel branch and
+BakaSU `fix/selinux-snapshot-bridge` branch; this candidate is not yet a validated
+replacement. The old fork-only parser/bridge tests are removed from this test
+branch; they remain available on the previous main branch. The pristine upstream
+revision is mirrored at `Kaniruka/BakaSU` branch `upstream-sync-up-20261113`, so
+the submodule continues to use the user's fork URL.
+
+The upstream Kconfig adds a priority UID filter with default `y`. The build
+profile explicitly disables it to retain the existing feature scope. Other
+SUSFS defaults are unchanged. The integrated credential helpers remain guarded
+by that option, matching their call sites.
+
+The upstream registrations activate a SUSFS type-hash collision defect: the
+imported code records bucket membership without checking the full type value.
+This candidate adds a local SUSFS correctness patch storing and comparing the
+complete key in both registration and lookup, while retaining RCU publication
+and node lifetime. Run
+`python3 tools/testing/selftests/selinux/susfs_type_test.py` for the focused
+collision/duplicate regression. BakaSU itself remains pristine upstream; this
+candidate is upstream BakaSU plus this local SUSFS key correction, rather than
+an entirely unmodified upstream integration. The existing manager's
+native UAPI, manager signature header and existing ioctl definitions are
+unchanged at this upstream revision; the new optional priority-UID command is
+additive and disabled here. Runtime manager/root compatibility remains to test.
 
 SUSFS's upstream repository carries GPL-3.0 in its root license, copied verbatim
 to [susfs-LICENSE](susfs-LICENSE); the imported files have no separate SPDX

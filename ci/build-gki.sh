@@ -29,7 +29,7 @@ fi
 export PATH="$TOOLCHAIN_DIR/bin:$PATH"
 command -v python >/dev/null || { echo 'Missing python command; install python-is-python3' >&2; exit 1; }
 clang --version | grep -q 'r416183b' || { echo 'Expected Android Clang r416183b' >&2; exit 1; }
-[[ $(git -C KernelSU rev-parse HEAD) == eca1c3bf99d99408aa6b857a38adb86b71cb8791 ]] || { echo 'Unexpected BakaSU revision; initialize pinned submodule' >&2; exit 1; }
+[[ $(git -C KernelSU rev-parse HEAD) == dc8e01e075ed1f6e1c7583ea8737ae79bd8237e5 ]] || { echo 'Unexpected BakaSU revision; initialize pinned submodule' >&2; exit 1; }
 [[ $(git -C KernelSU rev-parse --is-shallow-repository) == false ]] || { echo 'BakaSU needs full commit history for its version code' >&2; exit 1; }
 export ARCH=arm64 LLVM=1 LLVM_IAS=1
 export CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_COMPAT=arm-linux-gnueabi-
@@ -52,7 +52,8 @@ scripts/config --file "$OUT_DIR/.config" \
   --disable LTO_CLANG_FULL --enable LTO_CLANG_THIN
 # Clear every root/hook choice before selecting this build's profile.
 scripts/config --file "$OUT_DIR/.config" --disable KSU --disable KSU_SUSFS \
-  --disable KSU_TRACEPOINT_HOOK --disable KSU_MANUAL_HOOK
+  --disable KSU_TRACEPOINT_HOOK --disable KSU_MANUAL_HOOK \
+  --disable KSU_SUSFS_PRIORITY_UID_FILTER
 case "$ROOT_VARIANT" in
   bakasu-susfs)
     scripts/config --file "$OUT_DIR/.config" --enable KSU --enable KSU_SUSFS ;;
@@ -62,7 +63,7 @@ for option in CFI_CLANG MODVERSIONS LTO_CLANG_THIN; do
   grep -qx "CONFIG_${option}=y" "$OUT_DIR/.config" || { echo "Required option lost: $option" >&2; exit 1; }
 done
 # olddefconfig may resolve choices/dependencies differently from the seed.
-for option in KSU KSU_SUSFS KSU_TRACEPOINT_HOOK KSU_MANUAL_HOOK; do
+for option in KSU KSU_SUSFS KSU_TRACEPOINT_HOOK KSU_MANUAL_HOOK KSU_SUSFS_PRIORITY_UID_FILTER; do
   expected=n
   case "$ROOT_VARIANT:$option" in
     bakasu-susfs:KSU|bakasu-susfs:KSU_SUSFS) expected=y ;;
