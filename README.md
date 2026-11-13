@@ -1,3 +1,14 @@
+# Android 12 GKI 5.10 — optional BakaSU + SUSFS
+
+Generic arm64 kernel builds default to rootless (`ROOT_VARIANT=none`). Select
+`ROOT_VARIANT=bakasu-susfs` for pinned root features.
+CI builds both profiles. All profiles require the pinned submodule for Kconfig.
+This repository
+does not contain device-specific configuration or boot images.
+
+See [build and integration documentation](Documentation/bakasu-susfs.md) for
+local builds, GitHub Actions artifacts, dependency revisions and validation limits.
+
 # How do I submit patches to Android Common Kernels
 
 1. BEST: Make all of your changes to upstream Linux. If appropriate, backport to the stable releases.
