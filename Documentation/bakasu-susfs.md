@@ -55,8 +55,9 @@ our fork's parser or query-lock API patches. SELinux context/access/current
 queries use the native SUSFS routes, with the upstream BakaSU type and AVD
 registration calls. The integrated SUSFS source remains fixed at v2.4.0.
 The previous deployed source remains available on the main kernel branch and
-BakaSU `fix/selinux-snapshot-bridge` branch; this candidate is not yet a validated
-replacement. The old fork-only parser/bridge tests are removed from this test
+BakaSU `fix/selinux-snapshot-bridge` branch. This candidate passed local build
+and basic temporary target checks; it has not been promoted or deployed
+permanently. The old fork-only parser/bridge tests are removed from this test
 branch; they remain available on the previous main branch. The pristine upstream
 revision is mirrored at `Kaniruka/BakaSU` branch `upstream-sync-up-20261113`, so
 the submodule continues to use the user's fork URL.
@@ -77,7 +78,15 @@ candidate is upstream BakaSU plus this local SUSFS key correction, rather than
 an entirely unmodified upstream integration. The existing manager's
 native UAPI, manager signature header and existing ioctl definitions are
 unchanged at this upstream revision; the new optional priority-UID command is
-additive and disabled here. Runtime manager/root compatibility remains to test.
+additive and disabled here. On a mayfly running Android 17, temporary boot
+checks passed for root and the existing manager (manager version 35259/6,
+kernel version 35262/6), all seven core selftests, and the mounted SOTA module.
+Three Duck scans showed no red SELinux result; two complete reports recorded
+context 00, Dirty OK, and A-B differences of -53/-52 ns. These limited samples
+do not guarantee every detector or future run will pass. Play Integrity was
+not rerun, as requested by the user; no three-green result is claimed for this
+upstream candidate. The default main branch remains at `e81849ec2`, and the
+previously flashed v4 deployment remains unchanged.
 
 SUSFS's upstream repository carries GPL-3.0 in its root license, copied verbatim
 to [susfs-LICENSE](susfs-LICENSE); the imported files have no separate SPDX
