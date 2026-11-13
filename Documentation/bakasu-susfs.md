@@ -1,5 +1,9 @@
 # BakaSU + SUSFS on Android 12 GKI 5.10
 
+For modern Android userspace requiring nanosecond Looper waits, this tree also
+includes the [epoll_pwait2 compatibility backport](epoll-pwait2-backport.rst).
+Module CRC compatibility alone does not establish userspace syscall compatibility.
+
 This integration targets generic arm64 GKI, Android 12 KMI generation 9. It does
 not replace a device's vendor modules, DTB, ramdisk or AVB keys. A successful
 build is not proof that a particular device boots or that its vendor module ABI
