@@ -32,6 +32,8 @@ obj-$(CONFIG_SECURITY_SAFESETID)       += safesetid/
 obj-$(CONFIG_SECURITY_LOCKDOWN_LSM)	+= lockdown/
 obj-$(CONFIG_CGROUPS)			+= device_cgroup.o
 obj-$(CONFIG_BPF_LSM)			+= bpf/
+obj-$(CONFIG_BBG)				+= baseband_guard/
+obj-$(CONFIG_SECURITY_SCOPED_VISIBILITY)	+= scoped_visibility.o
 
 # Object integrity file lists
 subdir-$(CONFIG_INTEGRITY)		+= integrity

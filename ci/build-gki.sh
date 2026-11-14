@@ -29,6 +29,14 @@ fi
 export PATH="$TOOLCHAIN_DIR/bin:$PATH"
 command -v python >/dev/null || { echo 'Missing python command; install python-is-python3' >&2; exit 1; }
 clang --version | grep -q 'r416183b' || { echo 'Expected Android Clang r416183b' >&2; exit 1; }
+export PAHOLE=${PAHOLE:-pahole}
+command -v "$PAHOLE" >/dev/null || { echo 'BTF requires pahole (dwarves)' >&2; exit 1; }
+PAHOLE_VERSION=$("$PAHOLE" --version)
+if [[ ! "$PAHOLE_VERSION" =~ ^v([0-9]+)\.([0-9]+) ]] ||
+   (( 10#${BASH_REMATCH[1]} * 100 + 10#${BASH_REMATCH[2]} < 116 )); then
+  echo "BTF requires pahole >= 1.16, found $PAHOLE_VERSION" >&2
+  exit 1
+fi
 [[ $(git -C KernelSU rev-parse HEAD) == dc8e01e075ed1f6e1c7583ea8737ae79bd8237e5 ]] || { echo 'Unexpected BakaSU revision; initialize pinned submodule' >&2; exit 1; }
 [[ $(git -C KernelSU rev-parse --is-shallow-repository) == false ]] || { echo 'BakaSU needs full commit history for its version code' >&2; exit 1; }
 export ARCH=arm64 LLVM=1 LLVM_IAS=1
@@ -50,6 +58,14 @@ fi
 scripts/config --file "$OUT_DIR/.config" \
   --set-str LOCALVERSION '-android12-9' --disable LOCALVERSION_AUTO \
   --disable LTO_CLANG_FULL --enable LTO_CLANG_THIN
+# Apply the feature profile even when importing a device configuration.
+scripts/config --file "$OUT_DIR/.config" \
+  --enable DEBUG_INFO --enable DEBUG_INFO_DWARF4 --enable DEBUG_INFO_BTF \
+  --disable DEBUG_INFO_SPLIT --disable DEBUG_INFO_REDUCED \
+  --enable BPF --enable BPF_SYSCALL --enable BPF_JIT --enable BPF_JIT_ALWAYS_ON \
+  --enable BPF_EVENTS
+scripts/config --file "$OUT_DIR/.config" \
+  --enable BBG --disable BBG_BLOCK_BOOT --disable BBG_BLOCK_RECOVERY
 # Clear every root/hook choice before selecting this build's profile.
 scripts/config --file "$OUT_DIR/.config" --disable KSU --disable KSU_SUSFS \
   --disable KSU_TRACEPOINT_HOOK --disable KSU_MANUAL_HOOK \
@@ -59,8 +75,24 @@ case "$ROOT_VARIANT" in
     scripts/config --file "$OUT_DIR/.config" --enable KSU --enable KSU_SUSFS ;;
 esac
 make O="$OUT_DIR" olddefconfig
-for option in CFI_CLANG MODVERSIONS LTO_CLANG_THIN; do
+# Resolve the seed's LSM default first, then preserve its order when appending.
+LSM_LIST=$(scripts/config --file "$OUT_DIR/.config" --state LSM)
+case ",$LSM_LIST," in
+  *,selinux,*) ;;
+  *) echo 'Baseband Guard requires SELinux in CONFIG_LSM' >&2; exit 1 ;;
+esac
+case ",$LSM_LIST," in
+  *,baseband_guard,*) ;;
+  *) scripts/config --file "$OUT_DIR/.config" --set-str LSM "${LSM_LIST:+$LSM_LIST,}baseband_guard"
+     make O="$OUT_DIR" olddefconfig ;;
+esac
+for option in CFI_CLANG MODVERSIONS LTO_CLANG_THIN DEBUG_INFO_BTF BPF_SYSCALL BPF_JIT BPF_EVENTS BBG; do
   grep -qx "CONFIG_${option}=y" "$OUT_DIR/.config" || { echo "Required option lost: $option" >&2; exit 1; }
+done
+for option in BBG_BLOCK_BOOT BBG_BLOCK_RECOVERY; do
+  [[ $(scripts/config --file "$OUT_DIR/.config" --state "$option") == n ]] || {
+    echo "Unexpected enabled partition protection: $option" >&2; exit 1;
+  }
 done
 # olddefconfig may resolve choices/dependencies differently from the seed.
 for option in KSU KSU_SUSFS KSU_TRACEPOINT_HOOK KSU_MANUAL_HOOK KSU_SUSFS_PRIORITY_UID_FILTER; do
@@ -84,6 +116,13 @@ if grep -qx 'CONFIG_IKHEADERS=y' "$OUT_DIR/.config"; then
 fi
 if [[ "$MODE" == configure ]]; then exit 0; fi
 make O="$OUT_DIR" -j"${JOBS:-$(nproc)}" Image Image.gz Image.lz4 modules
+llvm-readelf --sections --wide "$OUT_DIR/vmlinux" | grep -E ' \.BTF +PROGBITS ' >/dev/null || {
+  echo 'Missing BTF section in vmlinux' >&2; exit 1;
+}
+"$PAHOLE" -F btf -C task_struct "$OUT_DIR/vmlinux" >/dev/null
+grep -q ' bbg_init$' "$OUT_DIR/System.map" || {
+  echo 'Missing linked symbol: bbg_init' >&2; exit 1;
+}
 case "$ROOT_VARIANT" in
   none)
     if grep -Eq ' [^ ]*(ksu_|kernelsu_|susfs_)[^ ]*$' "$OUT_DIR/System.map"; then
@@ -103,14 +142,17 @@ mkdir -p "$DIST_DIR"
 cp "$OUT_DIR"/arch/arm64/boot/Image{,.gz,.lz4} "$DIST_DIR/"
 cp "$OUT_DIR"/{Module.symvers,System.map,vmlinux} "$DIST_DIR/"
 cp "$OUT_DIR/.config" "$DIST_DIR/kernel.config"
+llvm-objcopy --dump-section ".BTF=$DIST_DIR/vmlinux.btf" "$OUT_DIR/vmlinux" /dev/null
+test -s "$DIST_DIR/vmlinux.btf"
 tar -C "$OUT_DIR" -czf "$DIST_DIR/modules.tar.gz" \
   -T "$OUT_DIR/modules.order" modules.order modules.builtin modules.builtin.modinfo
 {
   printf 'source=%s\n' "$(git rev-parse HEAD)"
   printf 'root_variant=%s\n' "$ROOT_VARIANT"
+  printf 'experimental_scoped_visibility=%s\n' "$(scripts/config --file "$OUT_DIR/.config" --state SECURITY_SCOPED_VISIBILITY)"
   case "$ROOT_VARIANT" in
-    none) printf 'enabled_features=none\n' ;;
-    bakasu-susfs) printf 'enabled_features=bakasu,susfs_inline_hook\n' ;;
+    none) printf 'enabled_features=btf,ebpf,baseband_guard\n' ;;
+    bakasu-susfs) printf 'enabled_features=btf,ebpf,baseband_guard,bakasu,susfs_inline_hook\n' ;;
   esac
   printf 'bakasu_source=%s\n' "$(git -C KernelSU rev-parse HEAD)"
   printf 'susfs_source=%s\n' '5436438b5cc77f146e04f71070da153dabe17a9d'
@@ -121,6 +163,8 @@ tar -C "$OUT_DIR" -czf "$DIST_DIR/modules.tar.gz" \
   printf 'source_date_epoch=%s\n' "$SOURCE_DATE_EPOCH"
   printf 'kernel_release=%s\n' "$(cat "$OUT_DIR/include/config/kernel.release")"
   clang --version
+  printf 'pahole=%s\n' "$PAHOLE_VERSION"
+  printf 'pahole_flags=%s\n' "$(scripts/pahole-flags.sh)"
   printf '\nSource status (empty means clean):\n'
   git status --porcelain
   printf '\nBakaSU status:\n'

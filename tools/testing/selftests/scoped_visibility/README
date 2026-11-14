@@ -1,0 +1,47 @@
+Scoped visibility experimental interface tools
+==============================================
+
+svctl is a small administrator-facing interface tool, not a startup
+coordinator, daemon, Android policy generator, or complete privacy fix.
+The kernel performs the final initial-user-namespace CAP_SYS_ADMIN check.
+Use only with the matching experimental UAPI/kernel; ioctl magic 0xF7 is
+a local experimental range, not an upstream allocation or stable ABI.
+
+  svctl status
+  svctl clear EXPECTED_GENERATION
+  svctl replace EXPECTED_GENERATION CONFIG
+
+status prints the generation, entry count, and each registered object's
+device major/minor and inode number. Those identifiers are diagnostics,
+not authorization tokens. Read the current generation, prepare a reviewed
+complete snapshot, then explicitly pass that generation to replace/clear.
+A competing update causes an error; svctl does not silently retry or adopt
+a newer generation. clear publishes an empty snapshot.
+
+CONFIG contains one directory path, a literal TAB, then comma-separated
+inclusive decimal UID intervals per line. Example (replace <TAB> with a tab):
+
+  /tmp/reviewed-private-container<TAB>0-0,1001-1001
+
+Blank lines and lines beginning with # are ignored. Intervals must be
+ascending, nonoverlapping, and within 0..4294967294 (4294967295 is an invalid
+kernel UID). Signs, whitespace in numbers, trailing characters, malformed
+intervals, more than 16 intervals, and more than 32 directories are rejected.
+CRLF input is accepted. Duplicate directory objects are rejected by the
+kernel. Empty CONFIG publishes an empty snapshot; inspect files before use.
+Directory names cannot contain tabs/newlines. The final pathname component
+must be a directory, not a symlink; intermediate pathname symlinks follow
+normal Linux resolution. Directory opens use O_PATH|O_DIRECTORY|O_NOFOLLOW.
+
+The control file is opened first; all acquired directory FDs and the control
+FD close after completion or error. Kernel-held pins survive successful
+publication until a subsequent replacement/clear. svctl never derives UIDs
+from package names, automatically enrolls default paths, mounts directories,
+starts services, or coordinates readiness/lifecycle. Existing descendant FDs,
+recreated objects, deeper exports, native own/shared-UID isolation, and app
+startup ordering require separate integration and acceptance testing.
+
+scoped_visibility_test is the public-interface regression executable.
+By default absent control skips with exit 4; --require-control fails with
+exit 1 when control is absent. Successful generic interface checks are not
+Android ordinary-App acceptance or proof of complete FUSE privacy repair.

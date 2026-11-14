@@ -50,6 +50,7 @@ TARGETS += ptrace
 TARGETS += openat2
 TARGETS += rseq
 TARGETS += rtc
+TARGETS += scoped_visibility
 TARGETS += seccomp
 TARGETS += sigaltstack
 TARGETS += size

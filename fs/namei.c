@@ -25,6 +25,7 @@
 #include <linux/fsnotify.h>
 #include <linux/personality.h>
 #include <linux/security.h>
+#include <linux/scoped_visibility.h>
 #include <linux/ima.h>
 #include <linux/syscalls.h>
 #include <linux/mount.h>
@@ -453,6 +454,12 @@ static int sb_permission(struct super_block *sb, struct inode *inode, int mask)
 int inode_permission(struct inode *inode, int mask)
 {
 	int retval;
+
+	if (mask & (MAY_EXEC | MAY_READ)) {
+		retval = scoped_visibility_check(inode);
+		if (retval)
+			return retval;
+	}
 
 	retval = sb_permission(inode->i_sb, inode, mask);
 	if (retval)

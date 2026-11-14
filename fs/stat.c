@@ -13,6 +13,7 @@
 #include <linux/fs.h>
 #include <linux/namei.h>
 #include <linux/security.h>
+#include <linux/scoped_visibility.h>
 #include <linux/cred.h>
 #include <linux/syscalls.h>
 #include <linux/pagemap.h>
@@ -182,6 +183,10 @@ int vfs_getattr(const struct path *path, struct kstat *stat,
 		u32 request_mask, unsigned int query_flags)
 {
 	int retval;
+
+	retval = scoped_visibility_check(d_backing_inode(path->dentry));
+	if (retval)
+		return retval;
 
 	retval = security_inode_getattr(path);
 	if (retval)

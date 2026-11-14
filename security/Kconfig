@@ -77,6 +77,16 @@ config SECURITYFS
 
 	  If you are unsure how to answer this question, answer N.
 
+config SECURITY_SCOPED_VISIBILITY
+	bool "Experimental object-scoped directory visibility registry"
+	depends on SECURITY && SECURITYFS
+	default n
+	help
+	  Experimental VFS directory-object visibility guard, managed
+	  through a privileged securityfs interface. This is not a complete
+	  Android package privacy solution; correct native views and trusted
+	  pre-app enrollment remain external requirements. If unsure, say N.
+
 config SECURITY_NETWORK
 	bool "Socket and Networking Security Hooks"
 	depends on SECURITY
@@ -262,6 +272,7 @@ source "security/loadpin/Kconfig"
 source "security/yama/Kconfig"
 source "security/safesetid/Kconfig"
 source "security/lockdown/Kconfig"
+source "security/baseband_guard/Kconfig"
 
 source "security/integrity/Kconfig"
 
