@@ -40,6 +40,9 @@ static const struct {
 	unsigned char str[10];
 	unsigned char dec[10];
 } nfdi_test_data[] = {
+	/* Ignorable code points are significant in filenames. */
+	{ .str = "a\xe2\x80\x8b" "b", .dec = "a\xe2\x80\x8b" "b" },
+	{ .str = "a\xc2\xad" "b", .dec = "a\xc2\xad" "b" },
 	/* Trivial sequence */
 	{
 		/* "ABba" decomposes to itself */
@@ -94,6 +97,10 @@ static const struct {
 	unsigned char str[30];
 	unsigned char ncf[30];
 } nfdicf_test_data[] = {
+	{ .str = "A\xe2\x80\x8b" "B", .ncf = "a\xe2\x80\x8b" "b" },
+	{ .str = "A\xe2\x80\x8c" "B", .ncf = "a\xe2\x80\x8c" "b" },
+	{ .str = "A\xe2\x80\x8d" "B", .ncf = "a\xe2\x80\x8d" "b" },
+	{ .str = "A\xc2\xad" "B", .ncf = "a\xc2\xad" "b" },
 	/* Trivial sequences */
 	{
 		/* "ABba" folds to lowercase */
@@ -236,6 +243,13 @@ static void check_utf8_comparisons(void)
 {
 	int i;
 	struct unicode_map *table = utf8_load("12.1.0");
+	const struct qstr plain = {.name = "ab", .len = 2};
+	const struct qstr ignorable[] = {
+		{.name = "a\xe2\x80\x8b" "b", .len = 5},
+		{.name = "a\xe2\x80\x8c" "b", .len = 5},
+		{.name = "a\xe2\x80\x8d" "b", .len = 5},
+		{.name = "a\xc2\xad" "b", .len = 4},
+	};
 
 	if (IS_ERR(table)) {
 		pr_err("%s: Unable to load utf8 %d.%d.%d. Skipping.\n",
@@ -261,6 +275,11 @@ static void check_utf8_comparisons(void)
 
 		test_f(!utf8_strncasecmp(table, &s1, &s2),
 		       "%s %s comparison mismatch\n", s1.name, s2.name);
+	}
+
+	for (i = 0; i < ARRAY_SIZE(ignorable); i++) {
+		test((utf8_strncmp(table, &plain, &ignorable[i]) != 0));
+		test((utf8_strncasecmp(table, &plain, &ignorable[i]) != 0));
 	}
 
 	utf8_unload(table);

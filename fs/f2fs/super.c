@@ -1179,11 +1179,12 @@ static int parse_options(struct super_block *sb, char *options, bool is_remount)
 			if (!name)
 				return -ENOMEM;
 			if (!strcmp(name, "perf")) {
-				f2fs_set_lookup_mode(sbi, LOOKUP_PERF);
+				pr_warn_once("F2FS-fs: lookup_mode=perf uses compat for legacy casefold hashes\n");
+				f2fs_set_lookup_mode(sbi, LOOKUP_COMPAT);
 			} else if (!strcmp(name, "compat")) {
 				f2fs_set_lookup_mode(sbi, LOOKUP_COMPAT);
 			} else if (!strcmp(name, "auto")) {
-				f2fs_set_lookup_mode(sbi, LOOKUP_AUTO);
+				f2fs_set_lookup_mode(sbi, LOOKUP_COMPAT);
 			} else {
 				kfree(name);
 				return -EINVAL;
@@ -1949,12 +1950,7 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 	else if (F2FS_OPTION(sbi).memory_mode == MEMORY_MODE_LOW)
 		seq_printf(seq, ",memory=%s", "low");
 
-	if (f2fs_get_lookup_mode(sbi) == LOOKUP_PERF)
-		seq_show_option(seq, "lookup_mode", "perf");
-	else if (f2fs_get_lookup_mode(sbi) == LOOKUP_COMPAT)
-		seq_show_option(seq, "lookup_mode", "compat");
-	else if (f2fs_get_lookup_mode(sbi) == LOOKUP_AUTO)
-		seq_show_option(seq, "lookup_mode", "auto");
+	seq_show_option(seq, "lookup_mode", "compat");
 
 	return 0;
 }
@@ -2017,7 +2013,7 @@ static void default_options(struct f2fs_sb_info *sbi, bool remount)
 
 	f2fs_build_fault_attr(sbi, 0, 0);
 
-	f2fs_set_lookup_mode(sbi, LOOKUP_PERF);
+	f2fs_set_lookup_mode(sbi, LOOKUP_COMPAT);
 }
 
 #ifdef CONFIG_QUOTA

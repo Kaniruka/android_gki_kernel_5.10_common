@@ -16,21 +16,6 @@
 #include "xattr.h"
 #include <trace/events/f2fs.h>
 
-static inline bool f2fs_should_fallback_to_linear(struct inode *dir)
-{
-	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
-
-	switch (f2fs_get_lookup_mode(sbi)) {
-	case LOOKUP_PERF:
-		return false;
-	case LOOKUP_COMPAT:
-		return true;
-	case LOOKUP_AUTO:
-		return !sb_no_casefold_compat_fallback(sbi->sb);
-	}
-	return false;
-}
-
 #ifdef CONFIG_UNICODE
 extern struct kmem_cache *f2fs_cf_name_slab;
 #endif
@@ -453,8 +438,8 @@ start_find_entry:
 
 out:
 #if IS_ENABLED(CONFIG_UNICODE)
-	if (f2fs_should_fallback_to_linear(dir) &&
-		IS_CASEFOLDED(dir) && !de && use_hash) {
+	/* Stored hashes can predate the Unicode ignorable-codepoint fix. */
+	if (IS_CASEFOLDED(dir) && !de && use_hash && !IS_ERR(*res_page)) {
 		use_hash = false;
 		goto start_find_entry;
 	}
