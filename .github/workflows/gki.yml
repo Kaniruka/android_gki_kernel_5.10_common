@@ -67,6 +67,10 @@ jobs:
         run: |
           set -o pipefail
           ci/build-gki.sh 2>&1 | tee "build-${ROOT_VARIANT}.log"
+      - name: Build scoped visibility selftest
+        run: make -C tools/testing/selftests/scoped_visibility
+      - name: Compile default-off visibility prototype in isolated output
+        run: bash ci/check-scoped-visibility.sh
       - name: Upload kernel, symbols and provenance
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:

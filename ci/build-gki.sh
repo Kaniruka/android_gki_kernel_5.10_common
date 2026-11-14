@@ -149,6 +149,7 @@ tar -C "$OUT_DIR" -czf "$DIST_DIR/modules.tar.gz" \
 {
   printf 'source=%s\n' "$(git rev-parse HEAD)"
   printf 'root_variant=%s\n' "$ROOT_VARIANT"
+  printf 'experimental_scoped_visibility=%s\n' "$(scripts/config --file "$OUT_DIR/.config" --state SECURITY_SCOPED_VISIBILITY)"
   case "$ROOT_VARIANT" in
     none) printf 'enabled_features=btf,ebpf,baseband_guard\n' ;;
     bakasu-susfs) printf 'enabled_features=btf,ebpf,baseband_guard,bakasu,susfs_inline_hook\n' ;;
