@@ -33,11 +33,11 @@ extern int utf8version_latest(void);
  *
  * nfdi:
  *  - Apply unicode normalization form NFD.
- *  - Remove any Default_Ignorable_Code_Point.
+ *  - Preserve Default_Ignorable_Code_Point characters.
  *
  * nfdicf:
  *  - Apply unicode normalization form NFD.
- *  - Remove any Default_Ignorable_Code_Point.
+ *  - Preserve Default_Ignorable_Code_Point characters.
  *  - Apply a full casefold (C + F).
  */
 extern const struct utf8data *utf8nfdi(unsigned int maxage);
@@ -62,7 +62,7 @@ extern int utf8nagemin(const struct utf8data *data, const char *s, size_t len);
 /*
  * Determine the length of the normalized from of the string,
  * excluding any terminating NULL byte.
- * Returns 0 if only ignorable code points are present.
+ * Returns 0 for an empty string.
  * Returns -1 if the input is not valid UTF-8.
  */
 extern ssize_t utf8len(const struct utf8data *data, const char *s);

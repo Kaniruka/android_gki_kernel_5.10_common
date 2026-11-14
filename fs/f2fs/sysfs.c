@@ -223,17 +223,8 @@ static ssize_t encoding_flags_show(struct f2fs_attr *a,
 static ssize_t effective_lookup_mode_show(struct f2fs_attr *a,
 		struct f2fs_sb_info *sbi, char *buf)
 {
-	switch (f2fs_get_lookup_mode(sbi)) {
-	case LOOKUP_PERF:
-		return sysfs_emit(buf, "perf\n");
-	case LOOKUP_COMPAT:
-		return sysfs_emit(buf, "compat\n");
-	case LOOKUP_AUTO:
-		if (sb_no_casefold_compat_fallback(sbi->sb))
-			return sysfs_emit(buf, "auto:perf\n");
-		return sysfs_emit(buf, "auto:compat\n");
-	}
-	return 0;
+	/* Legacy hashes remain possible irrespective of the on-disk flag. */
+	return sysfs_emit(buf, "compat\n");
 }
 
 static ssize_t mounted_time_sec_show(struct f2fs_attr *a,

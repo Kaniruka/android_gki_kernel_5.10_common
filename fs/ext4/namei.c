@@ -1470,14 +1470,9 @@ static bool ext4_match(struct inode *parent,
 		if (fname->cf_name.name) {
 			struct qstr cf = {.name = fname->cf_name.name,
 					  .len = fname->cf_name.len};
-			if (IS_ENCRYPTED(parent)) {
-				if (fname->hinfo.hash != EXT4_DIRENT_HASH(de) ||
-					fname->hinfo.minor_hash !=
-						EXT4_DIRENT_MINOR_HASH(de)) {
-
-					return 0;
-				}
-			}
+			/* Old casefold tables may have produced a different
+			 * stored hash.  Compare decrypted names during fallback.
+			 */
 			return !ext4_ci_compare(parent, &cf, de->name,
 							de->name_len, true);
 		}
@@ -1602,14 +1597,17 @@ static struct buffer_head *__ext4_find_entry(struct inode *dir,
 	if (is_dx(dir)) {
 		ret = ext4_dx_find_entry(dir, fname, res_dir, lblk);
 		/*
-		 * On success, or if the error was file not found,
-		 * return.  Otherwise, fall back to doing a search the
-		 * old fashioned way.
+		 * Casefold tables changed the treatment of ignorable code
+		 * points.  A hash miss may still have an old on-disk entry.
 		 */
-		if (!IS_ERR(ret) || PTR_ERR(ret) != ERR_BAD_DX_DIR)
+		if (IS_ERR(ret) && PTR_ERR(ret) == ERR_BAD_DX_DIR)
+			dxtrace(printk(KERN_DEBUG "ext4_find_entry: dx failed, "
+				       "falling back\n"));
+		else if (!ret && IS_CASEFOLDED(dir))
+			dxtrace(printk(KERN_DEBUG "ext4_find_entry: casefold "
+				       "miss, falling back\n"));
+		else
 			goto cleanup_and_exit;
-		dxtrace(printk(KERN_DEBUG "ext4_find_entry: dx failed, "
-			       "falling back\n"));
 		ret = NULL;
 	}
 	nblocks = dir->i_size >> EXT4_BLOCK_SIZE_BITS(sb);
