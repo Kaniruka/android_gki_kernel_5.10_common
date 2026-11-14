@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config BBG
+	bool "Baseband Guard"
+	depends on SECURITY_SELINUX && BLOCK
+	default y
+	help
+	  Restrict raw block writes, metadata changes and selected destructive
+	  ioctls from su, magisk and ksu domains and their exec descendants.
+	  Add baseband_guard to CONFIG_LSM to activate. SELinux remains in force.
+
+config BBG_BLOCK_BOOT
+	bool "Protect boot partitions with Baseband Guard"
+	depends on BBG
+	default n
+
+config BBG_BLOCK_RECOVERY
+	bool "Protect recovery partitions with Baseband Guard"
+	depends on BBG
+	default n

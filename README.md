@@ -6,6 +6,21 @@ CI builds both profiles. All profiles require the pinned submodule for Kconfig.
 This repository
 does not contain device-specific configuration or boot images.
 
+Both profiles enable kernel BTF alongside the existing eBPF syscall, JIT
+and tracing support. Builds require `pahole` >= 1.16 (the `dwarves` package);
+the kernel's existing pahole flags suppress unsupported ENUM64 encoding
+with newer tools. The build checks the final `.BTF` section, reads
+`task_struct` from it, and exports `vmlinux.btf` with the kernel artifacts.
+This does not change BPF access permissions or prove a particular BPF
+program works on a device.
+
+Both profiles also include [Baseband Guard](security/baseband_guard/README.md)
+with boot/recovery blocking disabled, and the
+[Unicode filename fix and compatibility lookup](Documentation/filesystems/unicode-casefold-compat.rst).
+Read the Unicode downgrade constraints before using an older kernel on a
+filesystem written with the new filename rules. FUSE-BPF is not enabled:
+the evaluated donor still requires verifier and argument-bound hardening.
+
 Build entry points are [`ci/fetch-toolchain.sh`](ci/fetch-toolchain.sh) and
 [`ci/build-gki.sh`](ci/build-gki.sh). BakaSU is pinned by the `KernelSU` gitlink
 and fetched directly from [Baka-SU/BakaSU](https://github.com/Baka-SU/BakaSU).
