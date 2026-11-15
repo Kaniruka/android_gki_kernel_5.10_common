@@ -184,7 +184,10 @@ int vfs_getattr(const struct path *path, struct kstat *stat,
 {
 	int retval;
 
-	retval = scoped_visibility_check(d_backing_inode(path->dentry));
+	retval = scoped_visibility_check(d_backing_inode(path->dentry), 0);
+	if (retval)
+		return retval;
+	retval = scoped_visibility_dentry(path->dentry);
 	if (retval)
 		return retval;
 

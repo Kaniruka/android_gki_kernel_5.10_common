@@ -45,3 +45,24 @@ scoped_visibility_test is the public-interface regression executable.
 By default absent control skips with exit 4; --require-control fails with
 exit 1 when control is absent. Successful generic interface checks are not
 Android ordinary-App acceptance or proof of complete FUSE privacy repair.
+
+scoped_visibility_v2_test exercises the child-aware interface: root search and
+metadata versus enumeration, own/shared full-UID names, hidden and missing
+names, negative creation, rename endpoints, native/compat ABI layouts, invalid
+snapshots, lease expiry, bounded concurrent lookup/replacement, and version-1
+replacement compatibility. It requires
+root in a disposable mount namespace, and is intended for an isolated test VM.
+See Documentation/filesystems/scoped-visibility-prototype.rst for the v2 ABI,
+lease synchronization window and deeper-FD/bind capability boundaries. svctl
+remains a version-1 diagnostic/controller; it does not publish v2 policies.
+
+Recorded validation (2026-11-15): the arm64 QEMU rootless generic profile and
+the mayfly BakaSU/SUSFS device-configuration Image each passed v1 22/22 native
+and 22/22 compat, plus v2 37/37 native and 37/37 compat. The v2 tests include
+24 complete policy replacements per process while an unprivileged reader
+performs positive and negative lookups, with observed overlap. The external
+module's final static svctl also passed real-kernel status/clear/status calls
+in each guest. These results cover VFS/UAPI behavior on disposable QEMU tmpfs
+fixtures. They do not establish Android ordinary-app, FUSE/F2FS device,
+activation/lifecycle completeness, or performance behavior. No phone was
+flashed for this validation.

@@ -18,6 +18,7 @@
 #include <linux/dirent.h>
 #include <linux/security.h>
 #include <linux/syscalls.h>
+#include <linux/scoped_visibility.h>
 #include <linux/unistd.h>
 #include <linux/compat.h>
 #include <linux/uaccess.h>
@@ -50,6 +51,10 @@ int iterate_dir(struct file *file, struct dir_context *ctx)
 	if (file->f_op->iterate_shared)
 		shared = true;
 	else if (!file->f_op->iterate)
+		goto out;
+
+	res = scoped_visibility_readdir(inode);
+	if (res)
 		goto out;
 
 	res = security_file_permission(file, MAY_READ);

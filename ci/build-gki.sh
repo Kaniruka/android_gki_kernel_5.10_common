@@ -41,7 +41,13 @@ fi
 [[ $(git -C KernelSU rev-parse --is-shallow-repository) == false ]] || { echo 'BakaSU needs full commit history for its version code' >&2; exit 1; }
 export ARCH=arm64 LLVM=1 LLVM_IAS=1
 export CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_COMPAT=arm-linux-gnueabi-
-export KBUILD_BUILD_USER=gki KBUILD_BUILD_HOST=builder KBUILD_BUILD_VERSION=1
+export KBUILD_BUILD_USER=${KBUILD_BUILD_USER:-build-user}
+export KBUILD_BUILD_HOST=${KBUILD_BUILD_HOST:-build-host}
+export KBUILD_BUILD_VERSION=${KBUILD_BUILD_VERSION:-1}
+# Match the vendor release format while retaining this checkout's source ID.
+# Explicit LOCALVERSION suppresses setlocalversion's otherwise implicit '+'.
+KERNEL_LOCALVERSION=${KERNEL_LOCALVERSION:--android12-9-g$(git rev-parse --short=12 HEAD)}
+export LOCALVERSION=${LOCALVERSION-}
 export SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH:-$(git show -s --format=%ct HEAD)}
 export KBUILD_BUILD_TIMESTAMP
 KBUILD_BUILD_TIMESTAMP=$(date -u -d "@$SOURCE_DATE_EPOCH")
@@ -56,7 +62,7 @@ else
   make O="$OUT_DIR" gki_defconfig
 fi
 scripts/config --file "$OUT_DIR/.config" \
-  --set-str LOCALVERSION '-android12-9' --disable LOCALVERSION_AUTO \
+  --set-str LOCALVERSION "$KERNEL_LOCALVERSION" --disable LOCALVERSION_AUTO \
   --disable LTO_CLANG_FULL --enable LTO_CLANG_THIN
 # Apply the feature profile even when importing a device configuration.
 scripts/config --file "$OUT_DIR/.config" \
@@ -162,6 +168,8 @@ tar -C "$OUT_DIR" -czf "$DIST_DIR/modules.tar.gz" \
   fi
   printf 'source_date_epoch=%s\n' "$SOURCE_DATE_EPOCH"
   printf 'kernel_release=%s\n' "$(cat "$OUT_DIR/include/config/kernel.release")"
+  printf 'build_user=%s\nbuild_host=%s\nbuild_version=%s\n' \
+    "$KBUILD_BUILD_USER" "$KBUILD_BUILD_HOST" "$KBUILD_BUILD_VERSION"
   clang --version
   printf 'pahole=%s\n' "$PAHOLE_VERSION"
   printf 'pahole_flags=%s\n' "$(scripts/pahole-flags.sh)"

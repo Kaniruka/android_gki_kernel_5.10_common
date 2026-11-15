@@ -6,6 +6,14 @@ CI builds both profiles. All profiles require the pinned submodule for Kconfig.
 This repository
 does not contain device-specific configuration or boot images.
 
+Build identity defaults to `build-user@build-host`, with release suffix
+`-android12-9-g<12-character source commit>` and no implicit `+`. This follows
+the inspected vendor naming format; it does not turn a custom build into an
+official firmware image. `KERNEL_LOCALVERSION`, `KBUILD_BUILD_USER`,
+`KBUILD_BUILD_HOST`, and `KBUILD_BUILD_VERSION` can override these defaults.
+The artifact's `build-info.txt` records the source status and build identity,
+including uncommitted changes that are not represented by the commit suffix.
+
 Both profiles enable kernel BTF alongside the existing eBPF syscall, JIT
 and tracing support. Builds require `pahole` >= 1.16 (the `dwarves` package);
 the kernel's existing pahole flags suppress unsupported ENUM64 encoding

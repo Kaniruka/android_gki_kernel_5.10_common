@@ -456,7 +456,7 @@ int inode_permission(struct inode *inode, int mask)
 	int retval;
 
 	if (mask & (MAY_EXEC | MAY_READ)) {
-		retval = scoped_visibility_check(inode);
+		retval = scoped_visibility_check(inode, mask);
 		if (retval)
 			return retval;
 	}
@@ -907,6 +907,10 @@ static int complete_walk(struct nameidata *nd)
 		if (!try_to_unlazy(nd))
 			return -ECHILD;
 	}
+
+	status = scoped_visibility_dentry(dentry);
+	if (status)
+		return status;
 
 	if (unlikely(nd->flags & LOOKUP_IS_SCOPED)) {
 		/*
@@ -1555,13 +1559,16 @@ static struct dentry *lookup_dcache(const struct qstr *name,
 static struct dentry *__lookup_hash(const struct qstr *name,
 		struct dentry *base, unsigned int flags)
 {
-	struct dentry *dentry = lookup_dcache(name, base, flags);
+	struct dentry *dentry;
 	struct dentry *old;
 	struct inode *dir = base->d_inode;
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
 	bool found_sus_path = false;
 #endif
 
+	if (scoped_visibility_lookup(dir, name))
+		return ERR_PTR(-ENOENT);
+	dentry = lookup_dcache(name, base, flags);
 	if (dentry)
 		return dentry;
 
@@ -1613,6 +1620,11 @@ static struct dentry *lookup_fast(struct nameidata *nd,
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
 	bool is_nd_state_lookup_last_and_open_last = (nd->state & (ND_STATE_LOOKUP_LAST | ND_STATE_OPEN_LAST));
 #endif
+
+	status = scoped_visibility_lookup(d_inode(parent), &nd->last);
+	if (status)
+		return ERR_PTR(status);
+	status = 1;
 
 	/*
 	 * Rename seqlock is not required here because in the off chance
@@ -1702,6 +1714,9 @@ static struct dentry *__lookup_slow(const struct qstr *name,
 	bool found_sus_path = false;
 	bool is_nd_flags_lookup_last = (flags & ND_FLAGS_LOOKUP_LAST);
 #endif
+
+	if (scoped_visibility_lookup(inode, name))
+		return ERR_PTR(-ENOENT);
 
 	/* Don't go there if it's already dead */
 	if (unlikely(IS_DEADDIR(inode)))
@@ -2710,6 +2725,8 @@ static int lookup_one_len_common(const char *name, struct dentry *base,
 		if (c == '/' || c == '\0')
 			return -EACCES;
 	}
+	if (scoped_visibility_lookup(d_inode(base), this))
+		return -ENOENT;
 	/*
 	 * See if the low-level filesystem might want
 	 * to use its own hash..
@@ -2902,6 +2919,9 @@ static int may_delete(struct inode *dir, struct dentry *victim, bool isdir)
 	struct inode *inode = d_backing_inode(victim);
 	int error;
 
+	error = scoped_visibility_lookup(dir, &victim->d_name);
+	if (error)
+		return error;
 	if (d_is_negative(victim))
 		return -ENOENT;
 	BUG_ON(!inode);
@@ -2949,6 +2969,10 @@ static int may_delete(struct inode *dir, struct dentry *victim, bool isdir)
 static inline int may_create(struct inode *dir, struct dentry *child)
 {
 	struct user_namespace *s_user_ns;
+	int error = scoped_visibility_lookup(dir, &child->d_name);
+
+	if (error)
+		return error;
 	audit_inode_child(dir, child, AUDIT_TYPE_CHILD_CREATE);
 	if (child->d_inode)
 		return -EEXIST;
@@ -3291,6 +3315,10 @@ static struct dentry *lookup_open(struct nameidata *nd, struct file *file,
 	bool found_sus_path = false;
 	bool is_nd_state_open_last = (nd->state & ND_STATE_OPEN_LAST);
 #endif
+
+	error = scoped_visibility_lookup(dir_inode, &nd->last);
+	if (error)
+		return ERR_PTR(error);
 
 	if (unlikely(IS_DEADDIR(dir_inode)))
 		return ERR_PTR(-ENOENT);
